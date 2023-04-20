@@ -1,3 +1,6 @@
 # add your name and matriculation number here
 # if you want your submission to be featured on the leaderboard also add 'Board: ' with the name that should show up 
 # lines beginning with '#' will be ignored
+Name: Stojkovic, Uros
+Matriculation number: 03774025
+Board: stoyk
