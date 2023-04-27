@@ -18,6 +18,7 @@ set(
 set(
     SRC_CC
     src/external_sort.cc
+    src/AscendingRun.cc
 )
 if(UNIX)
     set(SRC_CC ${SRC_CC} src/file/posix_file.cc)
