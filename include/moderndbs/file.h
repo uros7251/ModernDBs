@@ -104,6 +104,8 @@ public:
     void read_block(size_t offset, size_t, char* block) override;
 
     void write_block (const char* block, size_t offset, size_t size) override;
+
+    int get_fd() { return fd; }
  };
 
 }  // namespace moderndbs

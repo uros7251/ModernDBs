@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#include <sys/mman.h>
 
 #define integer uint64_t
 
@@ -90,6 +91,19 @@ void external_sort(File& input, size_t offset, size_t num_values, File& output, 
     }
 }
 
+bool external_sort_with_mmap(File& input, size_t num_values, File& output) {
+    if (PosixFile* posix = dynamic_cast<PosixFile*>(&output)) {
+        auto ptr = mmap(NULL, posix->size(), PROT_WRITE, MAP_SHARED, posix->get_fd(), 0);
+        if (ptr == MAP_FAILED) return false;
+        input.read_block(0, input.size(), reinterpret_cast<char*>(ptr));
+        auto numbers = reinterpret_cast<integer*>(ptr);
+        std::sort(numbers, numbers + num_values);
+        munmap(ptr, posix->size());
+        return true;
+    }
+    return false;
+}
+
 void external_sort(File& input, size_t num_values, File& output, size_t mem_size) {
     // TODO: add your implementation here
 
@@ -99,6 +113,8 @@ void external_sort(File& input, size_t num_values, File& output, size_t mem_size
     if (output.size() != input.size()) {
         output.resize(input.size());
     }
+
+    if (external_sort_with_mmap(input, num_values, output)) return;
 
     size_t file_size = num_values * sizeof(integer); // in bytes
     //size_t run_num_values = mem_size / sizeof(integer);

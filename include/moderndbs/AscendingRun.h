@@ -10,7 +10,7 @@ class ReadRun {
 private:
     size_t remaining_num_values, in_mem_num_values;
     size_t start;
-    int index;
+    unsigned index;
     File* inputFile;
     integer* cache;
     size_t cache_len;
@@ -28,7 +28,7 @@ class WriteRun {
 private:
     size_t in_mem_values;
     size_t start;
-    int index;
+    unsigned index;
     File* outputFile;
     integer* cache;
     size_t cache_len;
