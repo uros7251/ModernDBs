@@ -3,4 +3,4 @@
 # lines beginning with '#' will be ignored
 Name: Stojkovic, Uros
 Matriculation number: 03774025
-Board: virtual stoyk
+Board: stoyk

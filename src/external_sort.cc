@@ -114,11 +114,9 @@ void external_sort(File& input, size_t num_values, File& output, size_t mem_size
         output.resize(input.size());
     }
 
-    if (external_sort_with_mmap(input, num_values, output)) return;
+    // if (external_sort_with_mmap(input, num_values, output)) return;
 
     size_t file_size = num_values * sizeof(integer); // in bytes
-    //size_t run_num_values = mem_size / sizeof(integer);
-    //size_t run_size = run_num_values * sizeof(integer); // in bytes
     size_t offset = 0;
 
     auto tmp = File::make_temporary_file();
