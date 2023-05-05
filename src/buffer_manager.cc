@@ -25,21 +25,6 @@ BufferManager::~BufferManager() {
 
 BufferFrame& BufferManager::fix_page(uint64_t page_id, bool exclusive) {
     // TODO: add your implementation here
-    // if the page is not in buffer:
-    //  if the number of loaded pages is smaller than page_count:
-    //      create new buffer frame starting with first possible address
-    //  else:
-    //      if no page can be replaced:
-    //          throw exception
-    //      else:
-    //          replace page (including removing it from fifo or lru queue)
-    //          return corresponding buffer frame
-    //  update buffer frame fields and add it to fifo queue
-    // else:
-    //  remove buffer_frame from fifo queue and add it to lru queue
-    // find a page (if needed, replace some other page and load the requested one from file)
-    // if buffer frame is requested exclusive,
-    // static int help = 0;
     mtx.lock();
     if (_map.find(page_id) == _map.end()) {
         // if the page is not in the buffer
@@ -238,6 +223,7 @@ bool PageIO::read_page(uint64_t page_id, char* buffer, size_t size) {
         offset[page_id],
         size,
         buffer);
+    return true;
 }
 
 void PageIO::write_page(uint64_t page_id, char* buffer, size_t size) {
@@ -245,10 +231,7 @@ void PageIO::write_page(uint64_t page_id, char* buffer, size_t size) {
     auto segment_id = BufferManager::get_segment_id(page_id);
     if (segment_file_handle.find(segment_id) == segment_file_handle.end()) {
         auto filename = "file." + std::to_string(segment_id);
-        segment_file_handle.emplace(
-            segment_id,
-            File::open_file(filename.data(), File::Mode::WRITE)
-        );
+        segment_file_handle[segment_id] = File::open_file(filename.data(), File::Mode::WRITE);
         last_offset[segment_id] = segment_file_handle[segment_id]->size();
     }
     auto& file = *segment_file_handle[segment_id];
