@@ -5,19 +5,51 @@
 #include <cstdint>
 #include <exception>
 #include <vector>
+#include <list>
+#include <forward_list>
+#include <unordered_map>
+#include <mutex>
+#include <shared_mutex>
+#include <memory>
+#include "moderndbs/file.h"
 
 
 namespace moderndbs {
 
+class PageIO {
+private:
+    std::mutex mtx;
+    std::unordered_map<uint64_t, size_t> offset;
+    std::unordered_map<uint16_t, size_t> last_offset;
+    std::unordered_map<uint16_t, std::unique_ptr<File>> segment_file_handle;
+    PageIO() { } // constructor is private!
+public:
+    bool read_page(uint64_t page_id, char* buffer, size_t size);
+    void write_page(uint64_t page_id, char* buffer, size_t size);
+
+    static std::shared_ptr<PageIO> get_instance();
+};
+
 class BufferFrame {
 private:
     friend class BufferManager;
-
     // TODO: add your implementation here
-
+    uint64_t page_id;
+    std::shared_mutex latch;
+    int pin_count;
+    // you are allowed to modify the following fields only while you hold a lock
+    bool exclusive;
+    bool dirty;
+    char* data;
 public:
+    BufferFrame(uint64_t page_ID, bool excl, char* data_ptr)
+        :page_id(page_ID), pin_count(1), exclusive(excl), dirty(false), data(data_ptr) { }
+    
+    BufferFrame(const BufferFrame& other)
+        :BufferFrame(other.page_id, other.exclusive, other.data) { dirty = other.dirty; }
+    
     /// Returns a pointer to this page's data.
-    char* get_data();
+    char* get_data() { return data; }
 };
 
 
@@ -31,9 +63,32 @@ public:
 
 
 class BufferManager {
+    struct IterWrapper {
+        bool in_fifo;
+        std::list<BufferFrame>::iterator it;
+        IterWrapper(bool fifo, std::list<BufferFrame>::iterator iter)
+            :in_fifo(fifo), it(iter) {}
+        IterWrapper() {}
+    };
 private:
     // TODO: add your implementation here
+    std::mutex mtx;
 
+    size_t _page_size;
+    size_t _page_count;
+    char* _buffer;
+
+    std::list<BufferFrame> _fifo;
+    std::list<BufferFrame> _lru;
+
+    std::unordered_map<uint64_t, BufferManager::IterWrapper> _map;
+    std::unordered_map<uint16_t, std::unique_ptr<File>> _file_handles;
+
+    std::shared_ptr<PageIO> _page_io;
+
+    void flush_frame(BufferFrame&);
+    void read_page(BufferFrame&);
+    File& get_segment_file(uint64_t);
 public:
    BufferManager(const BufferManager&) = delete;
    BufferManager(BufferManager&&) = delete;
