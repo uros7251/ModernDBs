@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <mutex>
 #include <shared_mutex>
+#include <condition_variable>
 #include <memory>
 #include "moderndbs/file.h"
 
@@ -41,12 +42,16 @@ private:
     bool exclusive;
     bool dirty;
     char* data;
+    // ensure data is read from persistent storage before accessing
+    std::mutex cv_m;
+    std::condition_variable cv;
+    bool ready;
 public:
     BufferFrame(uint64_t page_ID, bool excl, char* data_ptr)
-        :page_id(page_ID), pin_count(1), exclusive(excl), dirty(false), data(data_ptr) { }
+        :page_id(page_ID), pin_count(1), exclusive(excl), dirty(false), data(data_ptr), ready(false) { }
     
     BufferFrame(const BufferFrame& other)
-        :BufferFrame(other.page_id, other.exclusive, other.data) { dirty = other.dirty; }
+        :BufferFrame(other.page_id, other.exclusive, other.data) { dirty = other.dirty; ready = other.ready; }
     
     /// Returns a pointer to this page's data.
     char* get_data() { return data; }
@@ -82,13 +87,13 @@ private:
     std::list<BufferFrame> _lru;
 
     std::unordered_map<uint64_t, BufferManager::IterWrapper> _map;
-    std::unordered_map<uint16_t, std::unique_ptr<File>> _file_handles;
 
     std::shared_ptr<PageIO> _page_io;
 
     void flush_frame(BufferFrame&);
     void read_page(BufferFrame&);
-    File& get_segment_file(uint64_t);
+    // must be called after acquiring mutex
+    void replace_page(std::unique_lock<std::mutex>&, std::list<BufferFrame>::iterator&, std::list<BufferFrame>&, uint64_t new_page_id, bool exclusive);
 public:
    BufferManager(const BufferManager&) = delete;
    BufferManager(BufferManager&&) = delete;
