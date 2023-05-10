@@ -10,6 +10,7 @@ BufferManager::BufferManager(size_t page_size, size_t page_count)
     // TODO: add your implementation here
     _page_io = PageIO::get_instance();
     _buffer = new char[_page_size*_page_count];
+    _map.reserve(page_count);
 }
 
 BufferManager::~BufferManager() {
@@ -25,7 +26,6 @@ BufferManager::~BufferManager() {
 
 BufferFrame& BufferManager::fix_page(uint64_t page_id, bool exclusive) {
     // TODO: add your implementation here
-    //mtx.lock();
     std::unique_lock lck {mtx};
     if (_map.find(page_id) == _map.end()) {
         // if the page is not in the buffer
@@ -35,23 +35,23 @@ BufferFrame& BufferManager::fix_page(uint64_t page_id, bool exclusive) {
             BufferFrame frame(page_id, exclusive, &_buffer[_map.size() * _page_size] );
             // insert into fifo queue and hash map
             _fifo.push_back(frame);
-            IterWrapper iter_wrapper = {true, std::prev(_fifo.end())};
-            _map[page_id] = iter_wrapper;
+            auto iter = std::prev(_fifo.end());
+            _map.insert({page_id, {true, iter}});
             // release the buffer manager mutex
             lck.unlock();
             // read data from persistent storage
-            read_page(*iter_wrapper.it);
+            read_page(*iter);
             // signal that data is ready to be consumed
             {
-                std::unique_lock lk {iter_wrapper.it->cv_m};
-                iter_wrapper.it->ready = true;
+                std::unique_lock lk {iter->cv_m};
+                iter->ready = true;
             }
-            iter_wrapper.it->cv.notify_all();
+            iter->cv.notify_all();
             // lock the buffer frame mutex
-            if (exclusive)  iter_wrapper.it->latch.lock();
-            else iter_wrapper.it->latch.lock_shared();
+            if (exclusive)  iter->latch.lock();
+            else iter->latch.lock_shared();
             // return BufferFrame reference
-            return *iter_wrapper.it;
+            return *iter;
         }
         else {
             // no free space in the buffer => need to replace some page
@@ -146,32 +146,33 @@ BufferFrame& BufferManager::fix_page(uint64_t page_id, bool exclusive) {
     else {
         // page is in the buffer
         // move to the back of lru queue
-        auto iter_wrapper = &_map[page_id];
-        if (iter_wrapper->in_fifo) {
-            _lru.splice(_lru.end(), _fifo, iter_wrapper->it);
-            iter_wrapper->in_fifo = false;
+        auto& iter_wrapper = _map[page_id];
+        auto& iter = iter_wrapper.it;
+        if (iter_wrapper.in_fifo) {
+            _lru.splice(_lru.end(), _fifo, iter);
+            iter_wrapper.in_fifo = false;
         }
         else {
-            _lru.splice(_lru.end(), _lru, iter_wrapper->it);
+            _lru.splice(_lru.end(), _lru, iter);
         }
         // update pin_count
-        ++(iter_wrapper->it->pin_count);
+        ++(iter->pin_count);
          // release the buffer manager mutex
         lck.unlock();
         {
-            std::unique_lock lk {iter_wrapper->it->cv_m};
-            iter_wrapper->it->cv.wait(lk, [iter_wrapper]{return iter_wrapper->it->ready;});
+            std::unique_lock lk {iter->cv_m};
+            iter->cv.wait(lk, [&iter]{return iter->ready;});
         }
         // lock appropriately
         if (exclusive) {
-            iter_wrapper->it->latch.lock();
-            iter_wrapper->it->exclusive = true;
+            iter->latch.lock();
+            iter->exclusive = true;
         }
         else {
-            iter_wrapper->it->latch.lock_shared();
+            iter->latch.lock_shared();
         }
         // return reference
-        return * iter_wrapper->it;
+        return * iter;
     }
 }
 
@@ -186,18 +187,15 @@ void BufferManager::unfix_page(BufferFrame& page, bool is_dirty) {
     {
         std::unique_lock lck {mtx};
         auto& iter_wrapper = _map[page.page_id];
-        if (iter_wrapper.in_fifo) {
-            _fifo.splice(_fifo.end(), _fifo, iter_wrapper.it);
-        }
-        else {
+        if (!iter_wrapper.in_fifo) {
             _lru.splice(_lru.end(), _lru, iter_wrapper.it);
+            //_fifo.splice(_fifo.end(), _fifo, iter_wrapper.it);
         }
         // update buffer frame fields
         page.dirty = is_dirty;
         --page.pin_count;
     }
 }
-
 
 std::vector<uint64_t> BufferManager::get_fifo_list() const {
     // TODO: add your implementation here
@@ -206,7 +204,6 @@ std::vector<uint64_t> BufferManager::get_fifo_list() const {
     return result;
 }
 
-
 std::vector<uint64_t> BufferManager::get_lru_list() const {
     // TODO: add your implementation here
     std::vector<uint64_t> result;
@@ -214,7 +211,7 @@ std::vector<uint64_t> BufferManager::get_lru_list() const {
     return result;
 }
 
-void moderndbs::BufferManager::flush_frame(BufferFrame& frame) {
+inline void moderndbs::BufferManager::flush_frame(BufferFrame& frame) {
     // only reading dirty, no harm
     if (!frame.dirty) return;
     _page_io->write_page(frame.page_id, frame.data, _page_size);
@@ -236,7 +233,7 @@ void BufferManager::replace_page(std::unique_lock<std::mutex>& lck, std::list<Bu
     // move it to the back of the fifo queue
     _fifo.splice(_fifo.end(), source, iter);
     // insert into hash map
-    _map[page_id] = IterWrapper(true, iter);
+    _map.insert({page_id, {true, iter}});
     // release the lock for write-back
     lck.unlock();
     // flush to persistent storage if needed
