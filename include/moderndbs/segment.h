@@ -108,7 +108,8 @@ class SPSegment : public moderndbs::Segment {
    /// Returns a TID that stores the page as well as the slot of the allocated record.
    /// The allocate method should use the free-space inventory to find a suitable page quickly.
    /// @param[in] size         The size that should be allocated.
-   TID allocate(uint32_t size);
+   /// @param[in] is_redirect  An indicator that slot is a redirect
+   TID allocate(uint32_t size, bool is_redirect_target = false);
 
    /// Read the data of the record into a buffer.
    /// @param[in] tid          The TID that identifies the record.

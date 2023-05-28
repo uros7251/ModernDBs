@@ -132,6 +132,10 @@ struct SlottedPage {
     /// @param[in] slot_id      The slot that should be erased
     void erase(uint16_t slot_id);
 
+    /// @brief Frees space held by slot data and sets its value to redirect_tid
+    /// @param slot_id          Redirect TID to be written
+    void make_redirect(uint16_t slot_id, TID redirect_tid);
+
     /// Compact the page.
     /// @param[in] page_size    The size of a buffer frame.
     void compactify(uint32_t page_size);
