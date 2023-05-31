@@ -1,6 +1,7 @@
 #include "moderndbs/slotted_page.h"
 #include <cstring>
 #include <vector>
+#include <queue>
 #include <algorithm>
 
 using moderndbs::SlottedPage;
@@ -145,23 +146,26 @@ void SlottedPage::compactify(uint32_t page_size) {
    // TODO: add your implementation here
    auto* data = get_data();
    auto* const slots = get_slots();
-   // we first extract on-page slots and arrange them in the order of descending offset
-   // sorting will be important for compactifying data
-   std::vector<std::pair<uint16_t, uint32_t>> on_page_slots;
-   // next line is optional
-   on_page_slots.reserve(header.slot_count);
+   // we first extract on-page slots and insert them in a maxheap by offset
+   // define comparison function
+   auto comp = [](const std::pair<uint16_t, uint32_t>& s1, const std::pair<uint16_t, uint32_t>& s2) {
+      return s1.second < s2.second;
+   };
+   // define max heap
+   std::priority_queue<std::pair<uint16_t, uint32_t>,
+      std::vector<std::pair<uint16_t, uint32_t>>,
+      decltype(comp)> heap{comp};
+   // populate max heap
    for (uint16_t i=0; i<header.slot_count; ++i) {
       if (!slots[i].is_empty() && !slots[i].is_redirect()) {
-         on_page_slots.emplace_back(i, slots[i].get_offset());
+         heap.emplace(i, slots[i].get_offset());
       }
    }
-   std::sort(on_page_slots.begin(), on_page_slots.end(), [](const std::pair<uint16_t, uint32_t> s1, const std::pair<uint16_t, uint32_t> s2) {
-      return s1.second > s2.second;
-   });
    uint32_t write_offset = page_size;
    uint16_t slot_id {0};
    // we then iterate over sorted slots, squishing the data to the end of the page (skipping redirect targets along the way)
-   for (auto& pair: on_page_slots) {
+   while (!heap.empty()) {
+      auto& pair = heap.top();
       slot_id = pair.first;
       auto size = slots[slot_id].get_size();
       auto read_offset = slots[slot_id].get_offset();
@@ -169,6 +173,7 @@ void SlottedPage::compactify(uint32_t page_size) {
       std::memmove(data+write_offset, data+read_offset, size);
       // update slot to reflect new offset
       slots[slot_id].set_slot(write_offset, size, slots[slot_id].is_redirect_target());
+      heap.pop();
    }
    // finally, we update data_start to reflect new layout
    header.data_start = write_offset;
