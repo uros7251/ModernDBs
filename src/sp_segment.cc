@@ -79,13 +79,32 @@ void SPSegment::resize(TID tid, uint32_t new_length) {
       auto* redirect_sp = reinterpret_cast<SlottedPage*>(redirect_page.get_data());
       auto* redirect_slot = redirect_sp->get_slots() + redirect_tid.get_slot();
       auto old_size = redirect_slot->get_size();
-      if (new_length+sizeof(TID) <= redirect_sp->header.free_space+old_size) {
+      if (new_length <= sp->header.free_space) {
+         // new_length bytes are available on the original page 
+         sp->erase(tid.get_slot());
+         auto slot_id = sp->allocate(new_length, buffer_manager.get_page_size());
+         slot = sp->get_slots()+slot_id;
+         auto* dst = reinterpret_cast<std::byte*>(page.get_data()) + slot->get_offset();
+         std::memcpy(
+            dst,
+            reinterpret_cast<std::byte*>(redirect_sp->get_data()+redirect_slot->get_offset()+sizeof(TID)),
+            std::min((unsigned long)new_length, redirect_slot->get_size()-sizeof(TID)));
+         redirect_sp->erase(redirect_tid.get_slot());
+         fsi.update(redirect_tid.get_page_id(0), calc_new_free_space(*redirect_sp));
+         fsi.update(tid.get_page_id(0), calc_new_free_space(*sp));
+      }
+      else if (new_length+sizeof(TID) <= redirect_sp->header.free_space+old_size) {
+         // enough space is available on current redirect page
          redirect_sp->relocate(redirect_tid.get_slot(), new_length+sizeof(TID), buffer_manager.get_page_size());
          fsi.update(redirect_tid.get_page_id(0), calc_new_free_space(*redirect_sp));
       }
       else {
+         // new redirection must be established
          auto rredirect_tid = allocate(new_length+sizeof(TID), true);
-         write(rredirect_tid, reinterpret_cast<std::byte*>(redirect_sp->get_data()+redirect_slot->get_offset()), redirect_slot->get_size());
+         write(
+            rredirect_tid,
+            reinterpret_cast<std::byte*>(redirect_sp->get_data()+redirect_slot->get_offset()),
+            redirect_slot->get_size());
          sp->make_redirect(tid.get_slot(), rredirect_tid);
          redirect_sp->erase(redirect_tid.get_slot());
          fsi.update(redirect_tid.get_page_id(0), calc_new_free_space(*redirect_sp));

@@ -170,9 +170,11 @@ void SlottedPage::compactify(uint32_t page_size) {
       auto size = slots[slot_id].get_size();
       auto read_offset = slots[slot_id].get_offset();
       write_offset-=size;
-      std::memmove(data+write_offset, data+read_offset, size);
-      // update slot to reflect new offset
-      slots[slot_id].set_slot(write_offset, size, slots[slot_id].is_redirect_target());
+      if (read_offset != write_offset) {
+         std::memmove(data+write_offset, data+read_offset, size);
+         // update slot to reflect new offset
+         slots[slot_id].set_slot(write_offset, size, slots[slot_id].is_redirect_target()); 
+      }
       heap.pop();
    }
    // finally, we update data_start to reflect new layout

@@ -83,16 +83,20 @@ class FSISegment : public Segment {
 
    /// Find a free page
    /// @param[in] required_space       The required space.
-   std::optional<uint64_t> find(uint32_t required_space);
+   std::optional<uint64_t> find(uint32_t required_space) { return find(required_space, true); }
 
    /// Encode free space nibble
    uint8_t encode_free_space(uint32_t free_space);
    /// Decode free space nibble
-   uint32_t decode_free_space(uint8_t free_space) { return free_space_map[free_space]; }
+   uint32_t decode_free_space(uint8_t free_space) { return encoding_scheme_map[free_space]; }
 
    /// The table
    schema::Table& table;
-   unsigned free_space_map[16];
+
+private:
+   size_t encoding_scheme_map[16];
+
+   std::optional<uint64_t> find(uint32_t required_space, bool use_cache);
 };
 
 class SPSegment : public moderndbs::Segment {
