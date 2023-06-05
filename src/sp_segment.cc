@@ -132,7 +132,7 @@ void SPSegment::erase(TID tid) {
    buffer_manager.unfix_page(page, true);
 }
 
-inline uint32_t calc_new_free_space(moderndbs::SlottedPage& sp) {
+uint32_t calc_new_free_space(moderndbs::SlottedPage& sp) {
    return sp.header.first_free_slot != sp.header.slot_count ? sp.header.free_space :
       sp.header.free_space <= sizeof(moderndbs::SlottedPage::Slot) ? 0u :
       sp.header.free_space - sizeof(moderndbs::SlottedPage::Slot);

@@ -88,7 +88,7 @@ class FSISegment : public Segment {
    /// Encode free space nibble
    uint8_t encode_free_space(uint32_t free_space);
    /// Decode free space nibble
-   uint32_t decode_free_space(uint8_t free_space);
+   uint32_t decode_free_space(uint8_t free_space) { return free_space_map[free_space]; }
 
    /// The table
    schema::Table& table;

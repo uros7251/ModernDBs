@@ -29,12 +29,11 @@ uint8_t FSISegment::encode_free_space(uint32_t free_space) {
    return static_cast<uint8_t>(free_space/denominator);*/
 }
 
-inline uint32_t FSISegment::decode_free_space(uint8_t free_space) {
-   // TODO: add your implementation here
-   return free_space_map[free_space];
-   //auto multiplier = buffer_manager.get_page_size() >> 4;
-   //return static_cast<uint32_t>(free_space*multiplier);
-}
+// uint32_t FSISegment::decode_free_space(uint8_t free_space) {
+//    // TODO: add your implementation here
+//    auto multiplier = buffer_manager.get_page_size() >> 4;
+//    return static_cast<uint32_t>(free_space*multiplier);
+// }
 
 void FSISegment::update(uint64_t target_page, uint32_t free_space) {
    // TODO: add your implementation here
