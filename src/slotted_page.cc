@@ -40,11 +40,11 @@ uint32_t SlottedPage::get_fragmented_free_space() {
 
 uint16_t SlottedPage::allocate(uint32_t data_size, uint32_t page_size) {
    // TODO: add your implementation here
-   if (data_size+sizeof(SlottedPage::Slot) > header.free_space) {
-      throw std::runtime_error("Not enough space!");
-   }
    // if the first free slot is not one of the allocated slots, we require more space
    auto required_space = data_size + (header.first_free_slot == header.slot_count ? sizeof(SlottedPage::Slot) : 0ul);
+   if (required_space > header.free_space) {
+      throw std::runtime_error("Not enough space!");
+   }
    if (required_space > get_fragmented_free_space()) {
       compactify(page_size);
    }

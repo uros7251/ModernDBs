@@ -92,6 +92,7 @@ class FSISegment : public Segment {
 
    /// The table
    schema::Table& table;
+   unsigned free_space_map[16];
 };
 
 class SPSegment : public moderndbs::Segment {

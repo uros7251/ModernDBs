@@ -5,6 +5,8 @@ using moderndbs::SPSegment;
 using moderndbs::Segment;
 using moderndbs::TID;
 
+inline uint32_t calc_new_free_space(moderndbs::SlottedPage& sp);
+
 SPSegment::SPSegment(uint16_t segment_id, BufferManager& buffer_manager, SchemaSegment &schema, FSISegment &fsi, schema::Table& table)
    : Segment(segment_id, buffer_manager), schema(schema), fsi(fsi), table(table) {
    // TODO: add your implementation here
@@ -24,7 +26,7 @@ TID SPSegment::allocate(uint32_t size, bool is_redirect_target) {
    auto slot_id = slotted_page->allocate(size, buffer_manager.get_page_size());
    auto* slot = slotted_page->get_slots()+slot_id;
    if (is_redirect_target) slot->mark_as_redirect_target();
-   auto free_space = slotted_page->header.free_space;
+   auto free_space = calc_new_free_space(*slotted_page);
    buffer_manager.unfix_page(page, true);
    fsi.update(page_id, free_space);
    return TID(page_id, slot_id);
@@ -75,29 +77,25 @@ void SPSegment::resize(TID tid, uint32_t new_length) {
       auto redirect_tid = slot->as_redirect_tid();
       auto& redirect_page = buffer_manager.fix_page(redirect_tid.get_page_id(segment_id), true);
       auto* redirect_sp = reinterpret_cast<SlottedPage*>(redirect_page.get_data());
-      // std::cout << redirect_tid.get_slot() <<"\n";
       auto* redirect_slot = redirect_sp->get_slots() + redirect_tid.get_slot();
       auto old_size = redirect_slot->get_size();
       if (new_length+sizeof(TID) <= redirect_sp->header.free_space+old_size) {
          redirect_sp->relocate(redirect_tid.get_slot(), new_length+sizeof(TID), buffer_manager.get_page_size());
-         auto page_id = redirect_tid.get_page_id(0);
-         fsi.update(page_id, redirect_sp->header.free_space);
+         fsi.update(redirect_tid.get_page_id(0), calc_new_free_space(*redirect_sp));
       }
       else {
          auto rredirect_tid = allocate(new_length+sizeof(TID), true);
          write(rredirect_tid, reinterpret_cast<std::byte*>(redirect_sp->get_data()+redirect_slot->get_offset()), redirect_slot->get_size());
          sp->make_redirect(tid.get_slot(), rredirect_tid);
          redirect_sp->erase(redirect_tid.get_slot());
-         auto page_id = redirect_tid.get_page_id(0);
-         fsi.update(page_id, redirect_sp->header.free_space);
+         fsi.update(redirect_tid.get_page_id(0), calc_new_free_space(*redirect_sp));
       }
       buffer_manager.unfix_page(redirect_page, true);
    }
    else {
       if (new_length <= sp->header.free_space+slot->get_size()) {
          sp->relocate(tid.get_slot(), new_length, buffer_manager.get_page_size());
-         auto page_id = tid.get_page_id(0);
-         fsi.update(page_id, sp->header.free_space);
+         fsi.update(tid.get_page_id(0), calc_new_free_space(*sp));
       }
       else {
          auto redirect_tid = allocate(new_length+sizeof(TID), true);
@@ -107,7 +105,7 @@ void SPSegment::resize(TID tid, uint32_t new_length) {
          write(redirect_tid, to_be_written, slot->get_size()+sizeof(TID));
          delete[] to_be_written;
          sp->make_redirect(tid.get_slot(), redirect_tid);
-         fsi.update(tid.get_page_id(0), sp->header.free_space);
+         fsi.update(tid.get_page_id(0), calc_new_free_space(*sp));
       }
    }
    buffer_manager.unfix_page(page, true);
@@ -126,8 +124,16 @@ void SPSegment::erase(TID tid) {
          throw std::runtime_error("Not redirect target");
       }
       redirect_sp->erase(redirect_tid.get_slot());
+      fsi.update(redirect_tid.get_page_id(0), calc_new_free_space(*redirect_sp));
       buffer_manager.unfix_page(redirect_page, true);
    }
    sp->erase(tid.get_slot());
+   fsi.update(tid.get_page_id(0), calc_new_free_space(*sp));
    buffer_manager.unfix_page(page, true);
+}
+
+inline uint32_t calc_new_free_space(moderndbs::SlottedPage& sp) {
+   return sp.header.first_free_slot != sp.header.slot_count ? sp.header.free_space :
+      sp.header.free_space <= sizeof(moderndbs::SlottedPage::Slot) ? 0u :
+      sp.header.free_space - sizeof(moderndbs::SlottedPage::Slot);
 }
