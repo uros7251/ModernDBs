@@ -1,1 +1,2 @@
-## Database Systems on Modern CPU architectures assignments
+## Database Systems on Modern CPU Architectures
+This repo contains the assignments done as part of the course "[Database Systems on Modern CPU Architectures](https://db.in.tum.de/teaching/ss23/moderndbs/?lang=en)" held by Prof. Thomas Neumann during the sumer semester of 2023 at Technical University of Munich. Each assignment has its own branch. I am going to update this repo as the deadlines for the respective assignment pass.
