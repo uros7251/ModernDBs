@@ -1,0 +1,80 @@
+# ---------------------------------------------------------------------------
+# MODERNDBS
+# ---------------------------------------------------------------------------
+
+stages:
+    - build
+    - test
+    - benchmark
+    - cleanup
+
+make:
+    stage: build
+    script:
+        - mkdir -p build
+        - cd build
+        - cmake -DCMAKE_BUILD_TYPE=Debug ..
+        - make
+    artifacts:
+        paths:
+            - build/external_sort
+            - build/tester
+            - build/benchmarks
+        expire_in: 1 hrs
+    cache:
+        key: "$CI_COMMIT_REF_SLUG"
+        paths:
+            - build/vendor/
+        policy: pull-push
+
+checkName:
+    stage: build
+    script:
+        - ./checkName.py
+    allow_failure: true
+
+tester:
+    stage: test
+    script:
+        - cd build
+        - timeout -s INT 120s ./tester --gtest_filter='-*Advanced*:*Multithread*'
+
+multithread_tester:
+    stage: test
+    script:
+        - cd build
+        - timeout -s INT 30s ./tester --gtest_filter='*Multithread*'
+
+advanced_tester:
+    stage: test
+    script:
+        - cd build
+        - ./tester --gtest_filter='*Advanced*'
+
+lint:
+    stage: test
+    script:
+        - mkdir -p build
+        - cd build
+        - cmake -DCMAKE_BUILD_TYPE=Debug ..
+        - make lint
+    cache:
+        key: "$CI_COMMIT_REF_SLUG"
+        paths:
+            - build/vendor/
+        policy: pull-push
+
+benchmark:
+    stage: benchmark
+    tags:
+        - moderndbs-benchmark
+    script:
+        - cd build
+        - cmake -DCMAKE_BUILD_TYPE=Release ..
+        - make
+        - timeout -s INT 120 ./benchmarks --benchmark_out_format=json --benchmark_out=benchmark_results.json
+    artifacts:
+        paths:
+            - build/benchmark_results.json
+        expire_in: 1 hr
+
