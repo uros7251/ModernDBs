@@ -6,7 +6,9 @@
 #include <ostream>
 #include <string>
 #include <vector>
-
+#include <variant>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace moderndbs::iterator_model {
 
@@ -14,6 +16,11 @@ namespace moderndbs::iterator_model {
 class Register {
 private:
     // TODO: add your implementation here
+    union {
+        int64_t integer;
+        char string[16];
+    };
+    bool is_int;
 
 public:
     /// The underlying type of the register. We simplify the implementation
@@ -134,6 +141,16 @@ public:
     BinaryOperator& operator=(const BinaryOperator&) = delete;
     BinaryOperator& operator=(BinaryOperator&&) = delete;
     ~BinaryOperator() override = default;
+
+    struct RegVecHash {
+        size_t operator()(const std::vector<Register>& vec) const {
+            size_t hash = 0ul;
+            for (auto r: vec) {
+                hash ^= r.get_hash();
+            }
+            return hash;
+        }
+    };
 };
 
 
@@ -145,6 +162,7 @@ class Print
 : public UnaryOperator {
 private:
     // TODO: add your implementation here
+    std::ostream& stream;
 
 public:
     Print(Operator& input, std::ostream& stream);
@@ -167,7 +185,8 @@ class Projection
 : public UnaryOperator {
 private:
     // TODO: add your implementation here
-
+    std::vector<size_t> attr_indices;
+    std::vector<Register*> output;
 public:
     Projection(Operator& input, std::vector<size_t> attr_indexes);
     Projection(const Projection&) = delete;
@@ -225,7 +244,14 @@ public:
 
 private:
     // TODO: add your implementation here
+    std::variant<PredicateAttributeInt64,
+                PredicateAttributeChar16,
+                PredicateAttributeAttribute> predicate;
+    std::vector<Register*> tuple;
 
+    bool filter_int(uint64_t left, uint64_t right, PredicateType predicate_type);
+    bool filter_str(std::string left, std::string right, PredicateType predicate_type);
+    bool filter_reg(const Register& left, const Register& right, PredicateType predicate_type);
 public:
     Select(Operator& input, PredicateAttributeInt64 predicate);
     Select(Operator& input, PredicateAttributeChar16 predicate);
@@ -259,7 +285,10 @@ public:
 
 private:
     // TODO: add your implementation here
-
+    std::vector<Criterion> criteria;
+    std::vector<std::vector<Register>> sorted_data;
+    std::vector<Register> output;
+    size_t next_index;
 public:
     Sort(Operator& input, std::vector<Criterion> criteria);
 
@@ -286,7 +315,16 @@ class HashJoin
 : public BinaryOperator {
 private:
     // TODO: add your implementation here
+    struct RegHash {
+        size_t operator()(const Register& r) const {
+            return r.get_hash();
+        }
+    };
 
+    size_t attr_index_left, attr_index_right;
+    std::unordered_map<Register,std::vector<Register>, RegHash> hash_map;
+    std::vector<Register*> right_registers;
+    std::vector<Register> output;
 public:
     /// Constructor
     /// attr_index_left: the left key to compare as an index from input_left's output
@@ -331,6 +369,13 @@ public:
 private:
     // TODO: add your implementation here
 
+    std::vector<size_t> group_by_attrs;
+    std::vector<AggrFunc> aggr_funcs;
+    std::unordered_map<std::vector<Register>,std::vector<Register>, BinaryOperator::RegVecHash> hash_map;
+    std::vector<Register> output;
+
+    void aggregate(std::vector<Register> key, std::vector<Register> values);
+
 public:
     /// Constructor
     /// group_by_attrs: the input keys to build groups over as an index from input's output
@@ -361,7 +406,10 @@ class Union
 : public BinaryOperator {
 private:
     // TODO: add your implementation here
-
+    std::unordered_set<std::vector<Register>, BinaryOperator::RegVecHash> hash_set;
+    std::vector<Register*> input;
+    bool read_right;
+    std::vector<Register> output;
 public:
     Union(Operator& input_left, Operator& input_right);
 
@@ -383,7 +431,9 @@ class UnionAll
 : public BinaryOperator {
 private:
     // TODO: add your implementation here
-
+    std::vector<Register*> input;
+    bool read_right;
+    std::vector<Register> output;
 public:
     UnionAll(Operator& input_left, Operator& input_right);
 
