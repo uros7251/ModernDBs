@@ -457,7 +457,8 @@ class Intersect
 : public BinaryOperator {
 private:
     // TODO: add your implementation here
-
+    std::unordered_set<std::vector<Register>, BinaryOperator::RegVecHash> hash_set;
+    std::vector<Register> output;
 public:
     Intersect(Operator& input_left, Operator& input_right);
 
@@ -481,7 +482,8 @@ class IntersectAll
 : public BinaryOperator {
 private:
     // TODO: add your implementation here
-
+    std::unordered_map<std::vector<Register>, size_t, BinaryOperator::RegVecHash> hash_map;
+    std::vector<Register> output;
 public:
     IntersectAll(Operator& input_left, Operator& input_right);
 
@@ -505,6 +507,8 @@ class Except
 : public BinaryOperator {
 private:
     // TODO: add your implementation here
+    std::unordered_set<std::vector<Register>, BinaryOperator::RegVecHash> hash_set;
+    std::vector<Register> output;
 
 public:
     Except(Operator& input_left, Operator& input_right);
@@ -529,7 +533,8 @@ class ExceptAll
 : public BinaryOperator {
 private:
     // TODO: add your implementation here
-
+    std::unordered_map<std::vector<Register>, size_t, BinaryOperator::RegVecHash> hash_map;
+    std::vector<Register> output;
 public:
     ExceptAll(Operator& input_left, Operator& input_right);
 

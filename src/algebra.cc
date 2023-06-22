@@ -679,23 +679,52 @@ Intersect::~Intersect() = default;
 
 void Intersect::open() {
     // TODO: add your implementation here
+    input_left->open();
+    auto regs = input_left->get_output();
+    while (input_left->next()) {
+        std::vector<Register> tuple;
+        tuple.reserve(regs.size());
+        for (auto* r: regs) {
+            tuple.push_back(*r);
+        }
+        hash_set.insert(tuple);
+    }
+    input_right->open();
+    output.resize(regs.size());
 }
 
 
 bool Intersect::next() {
     // TODO: add your implementation here
+    auto regs = input_right->get_output();
+    while (input_right->next()) {
+        for (auto i=0ul; i<output.size(); ++i) {
+            output[i] = *regs[i];
+        }
+        if (hash_set.find(output) != hash_set.end()) {
+            hash_set.erase(output);
+            return true;
+        }
+    }
     return false;
 }
 
 
 std::vector<Register*> Intersect::get_output() {
     // TODO: add your implementation here
-    return {};
+    std::vector<Register*> registers;
+    registers.reserve(output.size());
+    for (auto& attr: output) {
+        registers.push_back(&attr);
+    }
+    return registers;
 }
 
 
 void Intersect::close() {
     // TODO: add your implementation here
+    input_left->close();
+    input_right->close();
 }
 
 
@@ -710,23 +739,57 @@ IntersectAll::~IntersectAll() = default;
 
 void IntersectAll::open() {
     // TODO: add your implementation here
+    input_left->open();
+    auto regs = input_left->get_output();
+    while (input_left->next()) {
+        std::vector<Register> tuple;
+        tuple.reserve(regs.size());
+        for (auto* r: regs) {
+            tuple.push_back(*r);
+        }
+        if (hash_map.find(tuple) == hash_map.end()) {
+            hash_map[tuple] = 1ul;
+        }
+        else ++hash_map[tuple];
+    }
+    input_right->open();
+    output.resize(regs.size());
 }
 
 
 bool IntersectAll::next() {
     // TODO: add your implementation here
+    auto regs = input_right->get_output();
+    while (input_right->next()) {
+        for (auto i=0ul; i<output.size(); ++i) {
+            output[i] = *regs[i];
+        }
+        if (hash_map.find(output) != hash_map.end()) {
+            if (--hash_map[output] == 0) {
+                hash_map.erase(output);
+            }
+            return true;
+        }
+    }
     return false;
 }
 
 
 std::vector<Register*> IntersectAll::get_output() {
     // TODO: add your implementation here
-    return {};
+    std::vector<Register*> registers;
+    registers.reserve(output.size());
+    for (auto& attr: output) {
+        registers.push_back(&attr);
+    }
+    return registers;
 }
 
 
 void IntersectAll::close() {
     // TODO: add your implementation here
+    input_left->close();
+    input_right->close();
 }
 
 
@@ -741,23 +804,52 @@ Except::~Except() = default;
 
 void Except::open() {
     // TODO: add your implementation here
+    input_right->open();
+    auto regs = input_right->get_output();
+    while (input_right->next()) {
+        std::vector<Register> tuple;
+        tuple.reserve(regs.size());
+        for (auto* r: regs) {
+            tuple.push_back(*r);
+        }
+        hash_set.insert(tuple);
+    }
+    input_left->open();
+    output.resize(regs.size());
 }
 
 
 bool Except::next() {
     // TODO: add your implementation here
+    auto regs = input_left->get_output();
+    while (input_left->next()) {
+        for (auto i=0ul; i<output.size(); ++i) {
+            output[i] = *regs[i];
+        }
+        if (hash_set.find(output) == hash_set.end()) {
+            hash_set.insert(output);
+            return true;
+        }
+    }
     return false;
 }
 
 
 std::vector<Register*> Except::get_output() {
     // TODO: add your implementation here
-    return {};
+    std::vector<Register*> registers;
+    registers.reserve(output.size());
+    for (auto& attr: output) {
+        registers.push_back(&attr);
+    }
+    return registers;
 }
 
 
 void Except::close() {
     // TODO: add your implementation here
+    input_left->close();
+    input_right->close();
 }
 
 
@@ -772,23 +864,55 @@ ExceptAll::~ExceptAll() = default;
 
 void ExceptAll::open() {
     // TODO: add your implementation here
+    input_right->open();
+    auto regs = input_right->get_output();
+    while (input_right->next()) {
+        std::vector<Register> tuple;
+        tuple.reserve(regs.size());
+        for (auto* r: regs) {
+            tuple.push_back(*r);
+        }
+        if (hash_map.find(tuple) == hash_map.end()) {
+            hash_map[tuple] = 1ul;
+        }
+        else ++hash_map[tuple];
+    }
+    input_left->open();
+    output.resize(regs.size());
 }
 
 
 bool ExceptAll::next() {
     // TODO: add your implementation here
+    auto regs = input_left->get_output();
+    while (input_left->next()) {
+        for (auto i=0ul; i<output.size(); ++i) {
+            output[i] = *regs[i];
+        }
+        if (hash_map.find(output) == hash_map.end()) return true;
+        if (--hash_map[output] == 0) {
+            hash_map.erase(output);
+        }
+    }
     return false;
 }
 
 
 std::vector<Register*> ExceptAll::get_output() {
     // TODO: add your implementation here
-    return {};
+    std::vector<Register*> registers;
+    registers.reserve(output.size());
+    for (auto& attr: output) {
+        registers.push_back(&attr);
+    }
+    return registers;
 }
 
 
 void ExceptAll::close() {
     // TODO: add your implementation here
+    input_left->close();
+    input_right->close();
 }
 
 }  // namespace moderndbs
