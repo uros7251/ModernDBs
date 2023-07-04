@@ -585,11 +585,10 @@ bool Union::next() {
         for (auto* attr: input) {
             tuple.push_back(*attr);
         }
-        if (hash_set.find(tuple) == hash_set.end()) {
+        if (hash_set.insert(tuple).second) {
             for (auto i=0ul; i<output.size(); ++i) {
                 output[i] = tuple[i];
             }
-            hash_set.insert(tuple);
             return true;
         }
     }
@@ -701,8 +700,7 @@ bool Intersect::next() {
         for (auto i=0ul; i<output.size(); ++i) {
             output[i] = *regs[i];
         }
-        if (hash_set.find(output) != hash_set.end()) {
-            hash_set.erase(output);
+        if (hash_set.erase(output)) {
             return true;
         }
     }
@@ -765,7 +763,7 @@ bool IntersectAll::next() {
             output[i] = *regs[i];
         }
         if (hash_map.find(output) != hash_map.end()) {
-            if (--hash_map[output] == 0) {
+            if (--hash_map[output] == 0u) {
                 hash_map.erase(output);
             }
             return true;
@@ -826,8 +824,7 @@ bool Except::next() {
         for (auto i=0ul; i<output.size(); ++i) {
             output[i] = *regs[i];
         }
-        if (hash_set.find(output) == hash_set.end()) {
-            hash_set.insert(output);
+        if (hash_set.insert(output).second) {
             return true;
         }
     }
@@ -890,7 +887,7 @@ bool ExceptAll::next() {
             output[i] = *regs[i];
         }
         if (hash_map.find(output) == hash_map.end()) return true;
-        if (--hash_map[output] == 0) {
+        if (--hash_map[output] == 0u) {
             hash_map.erase(output);
         }
     }
