@@ -54,6 +54,9 @@ namespace moderndbs {
             : Expression(ValueType::DOUBLE), value(*reinterpret_cast<data64_t*>(&value)) {}
 
         /// TODO(students) implement evaluate and build
+        data64_t evaluate(const data64_t* args) override;
+
+        llvm::Value* build(llvm::IRBuilder<>& builder, llvm::Value* args) override;
     };
 
     /// An Argument. E.g., x in the function: fn(x) = x + 42
@@ -67,6 +70,9 @@ namespace moderndbs {
             : Expression(type), index(index) {}
 
         /// TODO(students) implement evaluate and build
+        data64_t evaluate(const data64_t* args) override;
+
+        llvm::Value* build(llvm::IRBuilder<>& builder, llvm::Value* args) override;
     };
 
     /// A converting Cast. Note that this needs proper converting casts that transform the binary representation.
@@ -84,6 +90,9 @@ namespace moderndbs {
         }
 
         /// TODO(students) implement evaluate and build
+        data64_t evaluate(const data64_t* args) override;
+
+        llvm::Value* build(llvm::IRBuilder<>& builder, llvm::Value* args) override;
     };
 
     /// An abstract binary expression with two subexpressions
@@ -108,6 +117,9 @@ namespace moderndbs {
             : BinaryExpression(left, right) {}
 
         /// TODO(students) implement evaluate and build
+        data64_t evaluate(const data64_t* args) override;
+
+        llvm::Value* build(llvm::IRBuilder<>& builder, llvm::Value* args) override;
     };
 
     /// A Subtraction. E.g., x - 42
@@ -117,6 +129,9 @@ namespace moderndbs {
             : BinaryExpression(left, right) {}
 
         /// TODO(students) implement evaluate and build
+        data64_t evaluate(const data64_t* args) override;
+
+        llvm::Value* build(llvm::IRBuilder<>& builder, llvm::Value* args) override;
     };
 
     /// A Multiplication. E.g., x * 42
@@ -126,6 +141,9 @@ namespace moderndbs {
             : BinaryExpression(left, right) {}
 
         /// TODO(students) implement evaluate and build
+        data64_t evaluate(const data64_t* args) override;
+
+        llvm::Value* build(llvm::IRBuilder<>& builder, llvm::Value* args) override;
     };
 
     /// A Division. E.g., x / 42
@@ -136,6 +154,9 @@ namespace moderndbs {
             : BinaryExpression(left, right) {}
 
         /// TODO(students) implement evaluate and build
+        data64_t evaluate(const data64_t* args) override;
+
+        llvm::Value* build(llvm::IRBuilder<>& builder, llvm::Value* args) override;
     };
 
     /// The expression compiler that generates LLVM IR code and JIT compiles it.
